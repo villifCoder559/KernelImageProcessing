@@ -4,21 +4,21 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define DIM 300
+#define DIM 500
 #define K_size 3
 #define BLOCK_WIDTH 16
 
 /*
   1) Create kernel that uses shared memory OK
   2) Manage data with size greater than constant memory OK
-  3) Try to increse the size of constant memory if possible (control if there is a difference between shared/constant memory)
-  3.1) Adapt algorithm to non-squared images
+  2.1) Manage the case where the image is too big (DIM=500) OK
+  3) Adapt algorithm to non-squared images
   4) Create more filters
-  5) Manage the case where the image is too big to fit the constant/shared memory
-  6) Measure divergence and general performance
+  4.1) Manage the case where the product exceeds 255 OK
+  END) Measure divergence and general performance (profiling)
 */
 
-__constant__ unsigned char d_image[DIM][2];
+__constant__ unsigned char d_image[DIM][2]; // 48KB max size [202,202]
 
 __global__ void convolution_base(float *d_kernel, unsigned char *out_img, unsigned char *d_img) {
   int col = threadIdx.x + blockIdx.x * blockDim.x;
@@ -31,13 +31,14 @@ __global__ void convolution_base(float *d_kernel, unsigned char *out_img, unsign
         int index_c = col - K_size / 2 + j;
         if (index_r >= 0 && index_r < DIM && index_c >= 0 && index_c < DIM) {
           sum += d_img[index_r * DIM + index_c] * d_kernel[i * K_size + j];
-          // if (row == 16 && col == 0)
+          // if (row == 190 && col == 0)
           //   printf("B(%d,%d):[%d_%d]->%d*%f \n", blockIdx.x, blockIdx.y, index_r, index_c, d_img[index_r * DIM + index_c], d_kernel[i * K_size + j]);
         }
       }
     }
-    // if (row == 16 && col == 0)
+    // if (row == 190 && col == 0)
     //   printf("SUM: %f \n", sum);
+    sum = fmaxf(0.0f, fminf(sum, 255.0f));
     out_img[row * DIM + col] = (unsigned char)sum;
   }
 }
@@ -62,6 +63,7 @@ __global__ void convolution_constant_memory(float *d_kernel, unsigned char *out_
         }
       }
     }
+    sum = fmaxf(0.0f, fminf(sum, 255.0f));
     out_img[row * DIM + col] = (unsigned char)sum;
   }
 }
@@ -74,6 +76,40 @@ __global__ void convolution_shared_memory(float *d_kernel, unsigned char *img, u
   int c = threadIdx.x;
   int r = threadIdx.y;
   int tid_block = threadIdx.x + threadIdx.y * BLOCK_WIDTH;
+  // initialize d_img
+  d_img[r + K_size / 2][c + K_size / 2] = 0;
+  if ((r < K_size / 2)) {
+    d_img[r][c + K_size / 2] = 0;
+  }
+  // row below
+  if (r > BLOCK_WIDTH - K_size / 2 - 1) {
+    d_img[r + K_size - 1][c + K_size / 2] = 0;
+  }
+  // colomun left
+  if ((c < K_size / 2)) {
+    d_img[r + K_size / 2][c] = 0;
+  }
+  // column right
+  if ((c > BLOCK_WIDTH - K_size / 2 - 1)) {
+    d_img[r + K_size / 2][c + K_size - 1] = 0;
+  }
+  // corner top right
+  if ((c == BLOCK_WIDTH - 1) && (r == BLOCK_WIDTH - 1)) {
+    d_img[r + K_size - 1][c + K_size - 1] = 0;
+  }
+  // corner top left
+  if ((c == 0) && (r == 0)) {
+    d_img[r][c] = 0;
+  }
+  // corner bottom left
+  if ((c == 0) && (r == BLOCK_WIDTH - 1)) {
+    d_img[r + K_size - 1][c] = 0;
+  }
+  // corner bottom right
+  if ((c == BLOCK_WIDTH - 1) && (r == 0)) {
+    d_img[r][c + K_size - 1] = 0;
+  }
+  __syncthreads();
   if (col < DIM && row < DIM) {
     d_img[r + K_size / 2][c + K_size / 2] = img[col + DIM * row];
     // check if exists row above
@@ -120,8 +156,8 @@ __global__ void convolution_shared_memory(float *d_kernel, unsigned char *img, u
   if (tid_block < K_size * K_size) {
     mask[tid_block] = d_kernel[tid_block];
   }
-  __syncthreads();
   float sum = 0.0f;
+  __syncthreads();
   if (col < DIM && row < DIM) {
     for (int i = 0; i < K_size; i++) {
       for (int j = 0; j < K_size; j++) {
@@ -129,13 +165,14 @@ __global__ void convolution_shared_memory(float *d_kernel, unsigned char *img, u
         int index_c = c + j;
         if (index_r < DIM && index_c < DIM) {
           sum += d_img[index_r][index_c] * mask[i * K_size + j];
-          // if (row == 16 && col == 0)
+          // if (row == 190 && col == 0)
           //   printf("(%d,%d):[%d_%d]->%d*%f \n", blockIdx.x, blockIdx.y, index_r, index_c, d_img[index_r][index_c], mask[i * K_size + j]);
         }
       }
     }
-    // if (row == 16 && col == 0)
+    // if (row == 190 && col == 0)
     //   printf("SUM: %f \n", sum);
+    sum = fmaxf(0.0f, fminf(sum, 255.0f));
     out_img[row * DIM + col] = (unsigned char)sum;
   }
 }
@@ -223,9 +260,7 @@ int main() {
     for (int j = 0; j < DIM; j++) {
       int value = rand() % 255;
       image[i * DIM + j] = value;
-      // printf("[%d,%d]=%d ", i, j, value);
     }
-    // printf("\n");
   }
   for (int i = 0; i < K_size; i++) // remember to flip matrix to compute convolution
     for (int j = 0; j < K_size; j++)
