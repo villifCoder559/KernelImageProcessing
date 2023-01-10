@@ -7,9 +7,11 @@ project(kuda VERSION 0.1.0 LANGUAGES CXX CUDA)
 
 # the following line was also necessary
 
-add_executable(kuda main.cu)
+add_executable(kuda main.cu image.cpp image.h convolution_gpu.cu convolution_gpu.h kernel.cpp kernel.h)
 # target_compile_options(kuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=-fopenmp>)
-
+target_compile_options(kuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --generate-line-info
+                       >)
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
