@@ -12,7 +12,7 @@ __global__ void convolution_base(const float *d_kernel, unsigned char *out_img, 
         int index_c = col - K_SIZE / 2 + j;
         if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
           sum += d_img[index_r * WIDTH + index_c] * d_kernel[i * K_SIZE + j];
-          // if (row == 190 && col == 0)
+          // if (row == 14 && col == 14)
           //   printf("B(%d,%d):[%d_%d]->%d*%f \n", blockIdx.x, blockIdx.y, index_r, index_c, d_img[index_r * WIDTH + index_c], d_kernel[i * K_SIZE + j]);
         }
       }
@@ -45,14 +45,15 @@ __global__ void convolution_constant_memory(unsigned char *out_img, unsigned cha
 __global__ void convolution_shared_memory(const float *d_kernel, unsigned char *img, unsigned char *out_img, const int WIDTH, const int HEIGHT, const int K_SIZE) {
   extern __shared__ float dynamic_array[];
   const int size_d_img = (BLOCK_WIDTH + K_SIZE - 1);
-  float *mask = &dynamic_array[size_d_img * size_d_img];
-  unsigned char *d_img = (unsigned char *)&dynamic_array;
+  unsigned char *d_img = (unsigned char *)&dynamic_array[K_SIZE * K_SIZE];
+  float *mask = (float *)&dynamic_array;
   int col = threadIdx.x + blockIdx.x * blockDim.x;
   int row = threadIdx.y + blockIdx.y * blockDim.y;
   int c = threadIdx.x;
   int r = threadIdx.y;
   int tid_block = threadIdx.x + threadIdx.y * BLOCK_WIDTH;
   int shift = K_SIZE / 2;
+  // printf("%d ", blockIdx.x, blockIdx.y, r, c, d_img[r * WIDTH + c]);
   // initialize d_img
   d_img[(r + shift) * size_d_img + c + shift] = 0;
   // init row above
@@ -71,68 +72,69 @@ __global__ void convolution_shared_memory(const float *d_kernel, unsigned char *
   if ((c > BLOCK_WIDTH - shift - 1)) {
     d_img[(r + shift) * size_d_img + c + K_SIZE - 1] = 0;
   }
-  // init corner top right
-  if ((c == BLOCK_WIDTH - 1) && (r == BLOCK_WIDTH - 1)) {
+  // init corner bottom right
+  if ((c >= BLOCK_WIDTH - shift) && (r >= BLOCK_WIDTH - shift)) { // r==c?
     d_img[(r + K_SIZE - 1) * size_d_img + c + K_SIZE - 1] = 0;
   }
   // init corner top left
-  if ((c == 0) && (r == 0)) {
+  if (shift - r > 0 && shift - c > 0) {
     d_img[r * size_d_img + c] = 0;
   }
   // init corner bottom left
-  if ((c == 0) && (r == BLOCK_WIDTH - 1)) {
+  if ((shift - c > 0) && (r >= BLOCK_WIDTH - shift)) {
     d_img[(r + K_SIZE - 1) * size_d_img + c] = 0;
   }
-  // init corner bottom right
-  if ((c == BLOCK_WIDTH - 1) && (r == 0)) {
+  // init corner top right
+  if ((c >= BLOCK_WIDTH - shift) && (shift - r > 0)) {
     d_img[r * size_d_img + c + K_SIZE - 1] = 0;
   }
   __syncthreads();
   if (col < WIDTH && row < HEIGHT) {
     d_img[(r + shift) * size_d_img + c + shift] = img[col + WIDTH * row];
     // check if exists row above
-    if ((row - shift >= 0 && r < shift)) {
+    if ((r < shift && row - shift >= 0)) {
       // printf("A(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row - shift, col - shift);
       d_img[r * size_d_img + c + shift] = img[col + (row - shift) * WIDTH];
     }
     // row below
-    if (r > BLOCK_WIDTH - shift - 1 && (row + shift) < HEIGHT) {
+    if (r >= BLOCK_WIDTH - shift && (row + shift) < HEIGHT) {
       d_img[(r + K_SIZE - 1) * size_d_img + c + shift] = img[(col) + (row + shift) * WIDTH];
       // printf("B(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row + shift, col);
     }
-    // colomun left
+    // column left
     if ((c < shift) && (col - shift >= 0)) {
       d_img[(r + shift) * size_d_img + c] = img[col - shift + (row)*WIDTH];
       // printf("C(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row, col - shift);
     }
     // column right
-    if ((c > BLOCK_WIDTH - shift - 1) && (col + shift < WIDTH)) {
-      d_img[(r + shift) * size_d_img + c + K_SIZE - 1] = img[col + shift + (row)*WIDTH];
+    if ((c >= BLOCK_WIDTH - shift) && (col + shift < WIDTH)) {
+      d_img[(r + shift) * size_d_img + c + K_SIZE - 1] = img[col + shift + row * WIDTH];
       // printf("D(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row, col + shift);
     }
-    // corner top right
-    if ((c == BLOCK_WIDTH - 1) && (r == BLOCK_WIDTH - 1) && row + shift < HEIGHT && col + shift < WIDTH) {
+    // corner bottom right
+    if ((c >= BLOCK_WIDTH - shift) && (r >= BLOCK_WIDTH - shift) && row + shift < HEIGHT && col + shift < WIDTH) {
       d_img[(r + K_SIZE - 1) * size_d_img + c + K_SIZE - 1] = img[col + shift + (row + shift) * WIDTH];
       // printf("E(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row + shift, col + shift);
     }
     // corner top left
-    if ((c == 0) && (r == 0) && row - shift >= 0 && col - shift >= 0) {
+    if ((shift - c > 0) && (shift - r > 0) && row - shift >= 0 && col - shift >= 0) {
       d_img[r * size_d_img + c] = img[col - shift + (row - shift) * WIDTH];
       // printf("F(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row - shift, col - shift);
     }
     // corner bottom left
-    if ((c == 0) && (r == BLOCK_WIDTH - 1) && row + shift < WIDTH && col - shift >= 0) {
+    if ((shift - c > 0) && (r >= BLOCK_WIDTH - shift) && row + shift < HEIGHT && col - shift >= 0) {
       d_img[(r + K_SIZE - 1) * size_d_img + c] = img[col - shift + (row + shift) * WIDTH];
       // printf("G(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row + shift, col - shift);
     }
-    // corner bottom right
-    if ((c == BLOCK_WIDTH - 1) && (r == 0) && row - shift >= 0 && col + shift < WIDTH) {
+    // corner top right
+    if ((c >= BLOCK_WIDTH - shift) && (shift - r > 0) && row - shift >= 0 && col + shift < WIDTH) {
       d_img[r * size_d_img + c + K_SIZE - 1] = img[col + shift + (row - shift) * WIDTH];
       // printf("H(%d,%d):%d_%d->%d_%d ", blockIdx.x, blockIdx.y, r, c, row - shift, col + shift);
     }
   }
   if (tid_block < K_SIZE * K_SIZE) {
     mask[tid_block] = d_kernel[tid_block];
+    // printf("\n %f ", mask[tid_block]);
   }
   float sum = 0.0f;
   __syncthreads();
@@ -144,7 +146,7 @@ __global__ void convolution_shared_memory(const float *d_kernel, unsigned char *
         int index_c = c + j;
         // if (index_r < HEIGHT && index_c < WIDTH) {
         sum += d_img[index_r * size_d_img + index_c] * mask[i * K_SIZE + j];
-        // if (row == 0 && col == 0)
+        // if (row == 14 && col == 14)
         //   printf("(%d,%d):[%d_%d]->%d*%f \n", blockIdx.x, blockIdx.y, index_r, index_c, d_img[index_r * size_d_img + index_c], mask[i * K_SIZE + j]);
         // }
       }
@@ -234,7 +236,7 @@ Image *ConvolutionGPU::apply_convolution_shared_memory(Image *image, Kernel *ker
   dim3 grid_dim(grid_size_x, grid_size_y);
 
   double start = omp_get_wtime();
-  convolution_shared_memory<<<grid_dim, block_dim, sizeof(float) * K_SIZE * K_SIZE + sizeof(unsigned char) * (BLOCK_WIDTH + K_SIZE - 1) * (BLOCK_WIDTH + K_SIZE - 1)>>>(d_kernel, d_img, d_out_img,
+  convolution_shared_memory<<<grid_dim, block_dim, sizeof(unsigned char) * (BLOCK_WIDTH + K_SIZE - 1) * (BLOCK_WIDTH + K_SIZE - 1) + sizeof(float) * K_SIZE * K_SIZE>>>(d_kernel, d_img, d_out_img,
                                                                                                                                                                         WIDTH, HEIGHT, K_SIZE);
   double end = omp_get_wtime();
   printf("TIME_GPU_shared: %f \n", end - start);
