@@ -12,7 +12,8 @@ private:
   int height;
   unsigned char *image;
 public:
-  Image(int width, int height, unsigned int seed = time(NULL));
+  Image(int width, int height);
+  Image(int width, int height, unsigned int seed);
   Image(unsigned char *matrix,int width, int height);
   unsigned char &operator[](int index); 
   int get_width();

@@ -1,10 +1,15 @@
 #include "image.h"
 
+Image::Image(int width, int height) {
+  this->width = width;
+  this->height = height;
+  image = (unsigned char *)malloc(sizeof(unsigned char) * width * height);
+}
 Image::Image(int width, int height, unsigned int seed) {
   this->width = width;
   this->height = height;
   image = (unsigned char *)malloc(sizeof(unsigned char) * width * height);
-  printf("seed: %d \n",seed);
+  printf("seed: %d \n", seed);
   srand(seed);
   for (int i = 0; i < height; i++)
     for (int j = 0; j < width; j++)
@@ -15,7 +20,7 @@ Image::Image(unsigned char *matrix, int width, int height) {
   this->width = width;
   this->height = height;
 }
-unsigned char& Image::operator[](int index) {
+unsigned char &Image::operator[](int index) {
   if (index >= width * height)
     exit(0);
   return image[index];
