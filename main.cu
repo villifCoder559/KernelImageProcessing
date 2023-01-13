@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <vector>
+#include "padding_image.h"
 /*
   1) Create kernel that uses shared memory OK
   2) Manage data with size greater than constant memory OK
@@ -16,7 +17,8 @@
   5) Create classes OK
   6) Fix apply_convolution passing all class Image OK
   7) Add const to some params OK
-  8) Test all
+  8) Test all OK
+  9) Add pixel replication and pixel mirroring
   END) Measure divergence and general performance (profiling) OK
 */
 void compare_result(Image *cmp1, Image *cmp2);
@@ -29,7 +31,22 @@ int main() {
   int width[] = {1280, 1920, 2560, 8120};
   int height[] = {720, 1080, 1440, 4568};
   type_kernel kernels[] = {gaussian_blur_3x3, gaussian_blur_5x5, gaussian_blur_7x7};
-  test_all_convolutions(4, 3, width, height, kernels);
+  Image *img = new Image(10, 6, 100);
+  // print_image(img);
+  Kernel *mask = new Kernel(kernels[0]);
+  Image *result_img_base = ConvolutionGPU::apply_convolution_base(img, mask);
+  print_image(result_img_base);
+  // double start = omp_get_wtime();
+  // Image *result_2 = PaddingImage::apply_padding_to_image(img, 3, zero);
+  // double end = omp_get_wtime();
+  // printf("\n%f \n",end-start);
+  // print_image(result_2);
+  // compare_result(result_1,result_2);
+  // std::cout<<" \nRESULT_ALT"<<std::endl;
+  // print_image(result_1);
+  // std::cout<<"RESULT_MY"<<std::endl;
+  // print_image(result_2);
+  // test_all_convolutions(4, 3, width, height, kernels);
 }
 
 void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels) {
@@ -44,9 +61,9 @@ void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *heig
       Image *result_cpu_seq = ConvolutionCPU::apply_convolution_sequential(img, mask);
       Image *result_cpu_par = ConvolutionCPU::apply_convolution_parallel(img, mask);
       compare_result(result_img_base, result_img_shared);
-      compare_result(result_img_shared,result_img_constant);
+      compare_result(result_img_shared, result_img_constant);
       compare_result(result_img_base, result_cpu_seq);
-      compare_result(result_cpu_seq,result_cpu_par);
+      compare_result(result_cpu_seq, result_cpu_par);
       delete mask;
       delete result_img_base;
       delete result_img_constant;
