@@ -1,28 +1,55 @@
 #include "convolution_gpu.h"
 __constant__ float kernel_const[MAX_SIZE_KERNEL * MAX_SIZE_KERNEL]; // 48KB max size [202,202]
 
+// __global__ void convolution_base(const float *d_kernel, unsigned char *out_img, unsigned char *d_img, const int WIDTH, const int HEIGHT, const int K_SIZE, const float norm) {
+//   int col = threadIdx.x + blockIdx.x * blockDim.x;
+//   int row = threadIdx.y + blockIdx.y * blockDim.y;
+//   float sum = 0.0f;
+//   if (col < WIDTH && row < HEIGHT) {
+//     for (int i = 0; i < K_SIZE; i++) {
+//       for (int j = 0; j < K_SIZE; j++) {
+//         int index_c = col - K_SIZE / 2 + j;
+//         int index_r = row - K_SIZE / 2 + i;
+//         if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
+//           sum += d_img[index_r * WIDTH + index_c] * d_kernel[i * K_SIZE + j];
+//           // if (row == 1 && col == 7902)
+//           //   printf("B(%d,%d):[%d_%d]->%d*%f \n", blockIdx.x, blockIdx.y, index_r, index_c, d_img[index_r * WIDTH + index_c], d_kernel[i * K_SIZE + j]);
+//         }
+//       }
+//     }
+//     // if (row == 1 && col == 7902)
+//     //   printf("SUM: %f \n", sum);
+//     sum = fmaxf(0.0f, fminf(sum * norm, 255.0f));
+//     out_img[row * WIDTH + col] = (unsigned char)sum;
+//   }
+// }
 __global__ void convolution_base(const float *d_kernel, unsigned char *out_img, unsigned char *d_img, const int WIDTH, const int HEIGHT, const int K_SIZE, const float norm) {
   int col = threadIdx.x + blockIdx.x * blockDim.x;
   int row = threadIdx.y + blockIdx.y * blockDim.y;
+  int col_d_img = col + K_SIZE / 2;
+  int row_d_img = row + K_SIZE / 2;
   float sum = 0.0f;
   if (col < WIDTH && row < HEIGHT) {
     for (int i = 0; i < K_SIZE; i++) {
       for (int j = 0; j < K_SIZE; j++) {
-        int index_c = col - K_SIZE / 2 + j;
-        int index_r = row - K_SIZE / 2 + i;
-        if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
-          sum += d_img[index_r * WIDTH + index_c] * d_kernel[i * K_SIZE + j];
-          // if (row == 1 && col == 7902)
-          //   printf("B(%d,%d):[%d_%d]->%d*%f \n", blockIdx.x, blockIdx.y, index_r, index_c, d_img[index_r * WIDTH + index_c], d_kernel[i * K_SIZE + j]);
-        }
+        int index_c = col_d_img - K_SIZE / 2 + j;
+        int index_r = row_d_img - K_SIZE / 2 + i;
+        sum += d_img[index_r * (WIDTH + K_SIZE - 1) + index_c] * d_kernel[i * K_SIZE + j];
+        // if (row == 1 && col == 0)
+        //   printf("B(%d,%d):[%d_%d]->%d*%f \n", blockIdx.x, blockIdx.y, index_r, index_c, d_img[index_r * (WIDTH + K_SIZE - 1) + index_c], d_kernel[i * K_SIZE + j]);
       }
     }
-    // if (row == 1 && col == 7902)
-    //   printf("SUM: %f \n", sum);
+    // if (row == 1 && col == 0) {
+    //   printf("SUM: %f \n", sum * norm);
+    //   printf("(%d,%d)", (row), col);
+    // }
     sum = fmaxf(0.0f, fminf(sum * norm, 255.0f));
     out_img[row * WIDTH + col] = (unsigned char)sum;
   }
+  // if (row == 1 && col == 7902)
+  //   printf("SUM: %f \n", sum);
 }
+
 __global__ void convolution_constant_memory(unsigned char *out_img, unsigned char *d_img, const int WIDTH, const int HEIGHT, const int K_SIZE, const float norm) {
   int col = threadIdx.x + blockIdx.x * blockDim.x;
   int row = threadIdx.y + blockIdx.y * blockDim.y;
@@ -166,7 +193,7 @@ __global__ void convolution_shared_memory(unsigned char *img, unsigned char *out
   }
 }
 
-Image *ConvolutionGPU::apply_convolution_constant_memory(Image *image, Kernel *kernel) {
+Image *ConvolutionGPU::apply_convolution_constant_memory(Image *image, Kernel *kernel, type_padding padding) {
   unsigned char *d_out_img;
   unsigned char *d_image;
   const int WIDTH = image->get_width();
@@ -195,19 +222,19 @@ Image *ConvolutionGPU::apply_convolution_constant_memory(Image *image, Kernel *k
   cudaFree(d_out_img);
   return out_img;
 }
-Image *ConvolutionGPU::apply_convolution_base(Image *image, Kernel *kernel) {
+Image *ConvolutionGPU::apply_convolution_base(Image *image, Kernel *kernel, type_padding padding) {
   unsigned char *d_out_img;
   float *d_kernel;
   unsigned char *d_img;
+  const int K_SIZE = kernel->get_size();
+  Image *img_padded = PaddingImage::apply_padding_to_image(image, K_SIZE, padding);
   const int WIDTH = image->get_width();
   const int HEIGHT = image->get_height();
-  const int K_SIZE = kernel->get_size();
-  const unsigned char *img = image->get_image();
   const float norm = kernel->get_normalization_factor();
   cudaMalloc(&d_kernel, K_SIZE * K_SIZE * sizeof(float));
-  cudaMalloc(&d_img, WIDTH * HEIGHT * sizeof(unsigned char));
+  cudaMalloc(&d_img, img_padded->get_width() * img_padded->get_height() * sizeof(unsigned char));
   cudaMalloc(&d_out_img, WIDTH * HEIGHT * sizeof(unsigned char));
-  cudaMemcpy(d_img, img, WIDTH * HEIGHT * sizeof(unsigned char), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_img, img_padded->get_image(), img_padded->get_width() * img_padded->get_height() * sizeof(unsigned char), cudaMemcpyHostToDevice);
   cudaMemcpy(d_kernel, kernel->get_kernel(), K_SIZE * K_SIZE * sizeof(float), cudaMemcpyHostToDevice);
   int grid_size_x = (WIDTH + BLOCK_WIDTH - 1) / BLOCK_WIDTH;
   int grid_size_y = (HEIGHT + BLOCK_WIDTH - 1) / BLOCK_WIDTH;
@@ -219,15 +246,15 @@ Image *ConvolutionGPU::apply_convolution_base(Image *image, Kernel *kernel) {
   auto end = omp_get_wtime();
   std::cout << "TIME_GPU_base: " << end - start << "\n";
   // unsigned char h_out_img[DIM*DIM];
-  unsigned char *h_out_img = (unsigned char *)malloc(sizeof(unsigned char) * WIDTH * HEIGHT);
-  cudaMemcpy(h_out_img, d_out_img, WIDTH * HEIGHT * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-  Image *out_img = new Image(h_out_img, WIDTH, HEIGHT);
+  unsigned char *h_out_img = (unsigned char *)malloc(WIDTH * HEIGHT * sizeof(unsigned char));
+  cudaMemcpy(h_out_img, d_out_img, image->get_width() * image->get_height() * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+  Image *out_img = new Image(h_out_img, image->get_width(), image->get_height());
   cudaFree(d_img);
   cudaFree(d_kernel);
   cudaFree(d_out_img);
   return out_img;
 }
-Image *ConvolutionGPU::apply_convolution_shared_memory(Image *image, Kernel *kernel) {
+Image *ConvolutionGPU::apply_convolution_shared_memory(Image *image, Kernel *kernel, type_padding padding) {
   unsigned char *d_out_img;
   float *d_kernel;
   unsigned char *d_img;
