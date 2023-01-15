@@ -1,7 +1,8 @@
 #include "convolution_cpu.h"
 
-Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel) {
-  const unsigned char *img = image->get_image();
+Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel, type_padding padding) {
+  Image *img_padded = PaddingImage::apply_padding_to_image(image, kernel->get_size(), padding);
+  const unsigned char *img = img_padded->get_image();
   const int WIDTH = image->get_width();
   const int HEIGHT = image->get_height();
   const int K_SIZE = kernel->get_size();
@@ -16,13 +17,13 @@ Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel) 
     for (int j = 0; j < WIDTH; j++) {
       for (int k = 0; k < K_SIZE; k++) {
         for (int w = 0; w < K_SIZE; w++) {
-          int index_r = i - shift + k;
-          int index_c = j - shift + w;
-          if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
-            sum += img[index_r * WIDTH + index_c] * mask[k * K_SIZE + w];
+          int index_r = i + k;
+          int index_c = j + w;
+          // if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
+            sum += img[index_r * (WIDTH + (K_SIZE - 1)) + index_c] * mask[k * K_SIZE + w];
             // if (i == 1 && j == 7902)
             //   printf("[%d_%d]->%d*%f \n", index_r, index_c, img[index_r * WIDTH + index_c], mask[k * K_SIZE + w]);
-          }
+          // }
         }
       }
       sum = sum * norm;
@@ -35,8 +36,9 @@ Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel) 
   Image *out_image = new Image(result_img, WIDTH, HEIGHT);
   return out_image;
 }
-Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel) {
-  const unsigned char *img = image->get_image();
+Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel, type_padding padding) {
+  Image *img_padded = PaddingImage::apply_padding_to_image(image, kernel->get_size(), padding);
+  const unsigned char *img = img_padded->get_image();
   const int WIDTH = image->get_width();
   const int HEIGHT = image->get_height();
   const int K_SIZE = kernel->get_size();
@@ -49,12 +51,12 @@ Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel
   for (int i = 0; i < HEIGHT; i++) {
     for (int j = 0; j < WIDTH; j++) {
       for (int k = 0; k < K_SIZE; k++) {
-        int index_r = i - shift + k;
+        int index_r = i + k;
         for (int w = 0; w < K_SIZE; w++) {
-          int index_c = j - shift + w;
-          if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
-            sum += img[index_r * WIDTH + index_c] * mask[k * K_SIZE + w];
-          }
+          int index_c = j + w;
+          // if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
+            sum += img[index_r * (WIDTH+K_SIZE-1) + index_c] * mask[k * K_SIZE + w];
+          // }
         }
       }
       sum = sum * norm;
@@ -63,7 +65,7 @@ Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel
     }
   }
   auto end = omp_get_wtime();
-  std::cout << "TIME_CPU_sequential: " << end-start << "\n";
+  std::cout << "TIME_CPU_sequential: " << end - start << "\n";
   Image *out_image = new Image(result_img, WIDTH, HEIGHT);
   return out_image;
 }
