@@ -1,12 +1,12 @@
 #include "convolution_cpu.h"
 #include "convolution_gpu.h"
+#include "padding_image.h"
 #include <iostream>
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <vector>
-#include "padding_image.h"
 /*
   1) Create kernel that uses shared memory OK
   2) Manage data with size greater than constant memory OK
@@ -18,12 +18,15 @@
   6) Fix apply_convolution passing all class Image OK
   7) Add const to some params OK
   8) Test all OK
-  9) Add pixel replication and pixel mirroring
+  9) Add pixel replication and pixel mirroring in conv_base and constant memory OK
+  10) Add replication and mirroring in conv_shared_memory OK
+  10.1) Clean the code (apply base and constant convolution)
+  11) test new features
   END) Measure divergence and general performance (profiling) OK
 */
 void compare_result(Image *cmp1, Image *cmp2);
 void print_image(Image *img, std::string title = "");
-void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels);
+void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels,type_padding padding);
 
 int main() {
   int tot_tests = 4;
@@ -31,35 +34,25 @@ int main() {
   int width[] = {1280, 1920, 2560, 8120};
   int height[] = {720, 1080, 1440, 4568};
   type_kernel kernels[] = {gaussian_blur_3x3, gaussian_blur_5x5, gaussian_blur_7x7};
-  Image *img = new Image(10, 6, 100);
-  // print_image(img);
-  Kernel *mask = new Kernel(kernels[0]);
-  Image *result_img_base = ConvolutionGPU::apply_convolution_base(img, mask);
-  print_image(result_img_base);
-  // double start = omp_get_wtime();
-  // Image *result_2 = PaddingImage::apply_padding_to_image(img, 3, zero);
-  // double end = omp_get_wtime();
-  // printf("\n%f \n",end-start);
-  // print_image(result_2);
-  // compare_result(result_1,result_2);
-  // std::cout<<" \nRESULT_ALT"<<std::endl;
-  // print_image(result_1);
-  // std::cout<<"RESULT_MY"<<std::endl;
-  // print_image(result_2);
-  // test_all_convolutions(4, 3, width, height, kernels);
+  type_padding paddings[] = {zero, pixel_mirroring, pixel_replication};
+  test_all_convolutions(tot_tests, tot_kernels, width, height, kernels,paddings[0]);
+  // Image *img = new Image(10, 6, 100);
+  // Kernel *mask = new Kernel(kernels[1]);
+  // Image *result_img_base = ConvolutionGPU::apply_convolution_constant_memory(img, mask,pixel_mirroring);
+  // print_image(result_img_base);
 }
 
-void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels) {
+void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels,type_padding padding) {
   for (int i = 0; i < tot_tests; i++) {
     Image *img = new Image(width[i], height[i], 100);
     for (int j = 0; j < tot_kernels; j++) {
       Kernel *mask = new Kernel(kernels[j]);
       printf("\n(%d,%d) using %dx%d gaussian filter \n", width[i], height[i], mask->get_size(), mask->get_size());
+      Image *result_img_constant = ConvolutionGPU::apply_convolution_constant_memory(img, mask,padding);
       Image *result_img_base = ConvolutionGPU::apply_convolution_base(img, mask);
-      Image *result_img_constant = ConvolutionGPU::apply_convolution_constant_memory(img, mask);
-      Image *result_img_shared = ConvolutionGPU::apply_convolution_shared_memory(img, mask);
-      Image *result_cpu_seq = ConvolutionCPU::apply_convolution_sequential(img, mask);
-      Image *result_cpu_par = ConvolutionCPU::apply_convolution_parallel(img, mask);
+      Image *result_img_shared = ConvolutionGPU::apply_convolution_shared_memory(img, mask,padding);
+      Image *result_cpu_seq = ConvolutionCPU::apply_convolution_sequential(img, mask,padding);
+      Image *result_cpu_par = ConvolutionCPU::apply_convolution_parallel(img, mask,padding);
       compare_result(result_img_base, result_img_shared);
       compare_result(result_img_shared, result_img_constant);
       compare_result(result_img_base, result_cpu_seq);
