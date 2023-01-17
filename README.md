@@ -25,4 +25,3 @@ The GPU versions should show improvements in terms of execution time and memory 
 This project demonstrates the benefits of utilizing a GPU for image processing tasks despite the overhead of data transfer from host to device.
 The GPU versions is able to perform the task much faster and more efficiently than the CPU versions.
 In conclusion, using GPU's for image processing tasks should be considered when performance is a critical factor, despite the data transfer time.
-You can read a
