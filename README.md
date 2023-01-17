@@ -6,9 +6,7 @@ overhead of data transfer from host/device to device/host.
 <br/>
 You can read a detailed pdf **project report** inside the folder "project_report".
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - A computer with an NVIDIA GPU
 - CUDA and cuDNN libraries installed
