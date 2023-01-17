@@ -12,7 +12,7 @@ Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel, 
   unsigned char *result_img = (unsigned char *)malloc(sizeof(unsigned char) * WIDTH * HEIGHT);
   float sum = 0.0f;
   auto start = omp_get_wtime();
-#pragma omp parallel for firstprivate(HEIGHT, WIDTH, K_SIZE, shift, sum, norm)
+#pragma omp parallel for firstprivate(HEIGHT, WIDTH, K_SIZE, shift, sum, norm) schedule(dynamic)
   for (int i = 0; i < HEIGHT; i++) {
     for (int j = 0; j < WIDTH; j++) {
       for (int k = 0; k < K_SIZE; k++) {
