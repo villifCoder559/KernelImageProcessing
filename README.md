@@ -1,4 +1,4 @@
-# Kernel Image Processing Project
+# Kernel Image Processing
 
 This project aims to compare the performance of parallel CPU, sequential CPU and 3 GPU versions(gloabl,constant and shared memory) of kernel image processing. 
 The goal is to demonstrate the improvements that can be achieved by utilizing a GPU for image processing tasks, despite the
