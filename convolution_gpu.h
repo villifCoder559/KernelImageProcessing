@@ -14,7 +14,7 @@ class ConvolutionGPU {
 public:
   ConvolutionGPU(){};
   static Image *apply_convolution_constant_memory(Image *image, Kernel *kernel, type_padding padding = zero);
-  static Image *apply_convolution_base(Image *image, Kernel *kernel, type_padding padding = zero);
+  static Image *apply_convolution_global_memory(Image *image, Kernel *kernel, type_padding padding = zero);
   static Image *apply_convolution_shared_memory(Image *image, Kernel *kernel, type_padding padding = zero);
   ~ConvolutionGPU(){};
 };

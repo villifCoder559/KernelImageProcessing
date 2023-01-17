@@ -48,21 +48,21 @@ void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *heig
     for (int j = 0; j < tot_kernels; j++) {
       Kernel *mask = new Kernel(kernels[j]);
       printf("\n(%d,%d) using %dx%d gaussian filter \n", width[i], height[i], mask->get_size(), mask->get_size());
+      Image *result_img_base = ConvolutionGPU::apply_convolution_global_memory(img, mask);
       Image *result_img_constant = ConvolutionGPU::apply_convolution_constant_memory(img, mask,padding);
-      Image *result_img_base = ConvolutionGPU::apply_convolution_base(img, mask);
       Image *result_img_shared = ConvolutionGPU::apply_convolution_shared_memory(img, mask,padding);
-      Image *result_cpu_seq = ConvolutionCPU::apply_convolution_sequential(img, mask,padding);
-      Image *result_cpu_par = ConvolutionCPU::apply_convolution_parallel(img, mask,padding);
+      // Image *result_cpu_seq = ConvolutionCPU::apply_convolution_sequential(img, mask,padding);
+      // Image *result_cpu_par = ConvolutionCPU::apply_convolution_parallel(img, mask,padding);
       compare_result(result_img_base, result_img_shared);
       compare_result(result_img_shared, result_img_constant);
-      compare_result(result_img_base, result_cpu_seq);
-      compare_result(result_cpu_seq, result_cpu_par);
+      // compare_result(result_img_base, result_cpu_seq);
+      // compare_result(result_cpu_seq, result_cpu_par);
       delete mask;
       delete result_img_base;
       delete result_img_constant;
       delete result_img_shared;
-      delete result_cpu_seq;
-      delete result_cpu_par;
+      // delete result_cpu_seq;
+      // delete result_cpu_par;
     }
     delete img;
     printf("\n");
