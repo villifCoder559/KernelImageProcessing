@@ -9,6 +9,7 @@ Image::Image(int width, int height, unsigned int seed) {
   this->width = width;
   this->height = height;
   image = (unsigned char *)malloc(sizeof(unsigned char) * width * height);
+  seed = seed ? seed : (unsigned int)time(NULL);
   printf("seed: %d \n", seed);
   srand(seed);
   for (int i = 0; i < height; i++)

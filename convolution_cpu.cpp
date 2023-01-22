@@ -34,11 +34,13 @@ Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel, 
   auto end = omp_get_wtime();
   std::cout << "TIME_CPU_parallel: " << end - start << "\n";
   Image *out_image = new Image(result_img, WIDTH, HEIGHT);
+  // delete img;
+  delete img_padded;
   return out_image;
 }
 Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel, type_padding padding) {
   Image *img_padded = PaddingImage::apply_padding_to_image(image, kernel->get_size(), padding);
-  const unsigned char *img = img_padded->get_image();
+  unsigned char *img = img_padded->get_image();
   const int WIDTH = image->get_width();
   const int HEIGHT = image->get_height();
   const int K_SIZE = kernel->get_size();
@@ -67,5 +69,6 @@ Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel
   auto end = omp_get_wtime();
   std::cout << "TIME_CPU_sequential: " << end - start << "\n";
   Image *out_image = new Image(result_img, WIDTH, HEIGHT);
+  delete img_padded;
   return out_image;
 }

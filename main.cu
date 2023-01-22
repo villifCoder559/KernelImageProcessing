@@ -26,7 +26,7 @@
 */
 void compare_result(Image *cmp1, Image *cmp2);
 void print_image(Image *img, std::string title = "");
-void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels,type_padding padding);
+void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels, type_padding padding);
 
 int main() {
   int tot_tests = 4;
@@ -35,32 +35,38 @@ int main() {
   int height[] = {720, 1080, 1440, 4568};
   type_kernel kernels[] = {gaussian_blur_3x3, gaussian_blur_5x5, gaussian_blur_7x7};
   type_padding paddings[] = {zero, pixel_mirroring, pixel_replication};
-  test_all_convolutions(tot_tests, tot_kernels, width, height, kernels,paddings[0]);
-  // Image *img = new Image(10, 6, 100);
-  // Kernel *mask = new Kernel(kernels[1]);
-  // Image *result_img_base = ConvolutionGPU::apply_convolution_constant_memory(img, mask,pixel_mirroring);
-  // print_image(result_img_base);
+  test_all_convolutions(tot_tests, tot_kernels, width, height, kernels, paddings[0]);
+  // Image *img = new Image(1920, 1080, 100);
+  // Kernel *mask = new Kernel(kernels[2]);
+  // Image *result_img_shared = ConvolutionGPU::apply_convolution_shared_memory(img, mask, zero);
+  // Image *result_img_base = ConvolutionGPU::apply_convolution_global_memory(img, mask, zero);
+  // compare_result(result_img_base, result_img_shared);
+  return 0;
 }
 
-void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels,type_padding padding) {
+void test_all_convolutions(int tot_tests, int tot_kernels, int *width, int *height, type_kernel *kernels, type_padding padding) {
   for (int i = 0; i < tot_tests; i++) {
-    Image *img = new Image(width[i], height[i], 100);
+    Image *img = new Image(width[i], height[i],0);
     for (int j = 0; j < tot_kernels; j++) {
       Kernel *mask = new Kernel(kernels[j]);
       printf("\n(%d,%d) using %dx%d gaussian filter \n", width[i], height[i], mask->get_size(), mask->get_size());
-      Image *result_img_base = ConvolutionGPU::apply_convolution_global_memory(img, mask);
-      Image *result_img_constant = ConvolutionGPU::apply_convolution_constant_memory(img, mask,padding);
-      Image *result_img_shared = ConvolutionGPU::apply_convolution_shared_memory(img, mask,padding);
+      // Image *result_img_base = ConvolutionGPU::apply_convolution_global_memory(img, mask);
+      // Image *result_img_constant = ConvolutionGPU::apply_convolution_constant_memory(img, mask, padding);
+      Image *result_img_shared_v1 = ConvolutionGPU::apply_convolution_shared_memory(img, mask, padding, 1);
+      Image *result_img_shared_v2 = ConvolutionGPU::apply_convolution_shared_memory(img, mask, padding, 2);
       // Image *result_cpu_seq = ConvolutionCPU::apply_convolution_sequential(img, mask,padding);
       // Image *result_cpu_par = ConvolutionCPU::apply_convolution_parallel(img, mask,padding);
-      compare_result(result_img_base, result_img_shared);
-      compare_result(result_img_shared, result_img_constant);
+      // compare_result(result_img_base, result_img_shared_v1);
+      // compare_result(result_img_base, result_img_shared_v2);
+      compare_result(result_img_shared_v1,result_img_shared_v2);
+      // compare_result(result_img_base, result_img_constant);
       // compare_result(result_img_base, result_cpu_seq);
       // compare_result(result_cpu_seq, result_cpu_par);
       delete mask;
-      delete result_img_base;
-      delete result_img_constant;
-      delete result_img_shared;
+      // delete result_img_base;
+      // delete result_img_constant;
+      delete result_img_shared_v1;
+      delete result_img_shared_v2;
       // delete result_cpu_seq;
       // delete result_cpu_par;
     }
@@ -74,7 +80,8 @@ void compare_result(Image *cmp1, Image *cmp2) {
     for (int i = 0; i < cmp1->get_height(); i++) {
       for (int j = 0; j < cmp1->get_width(); j++)
         if ((cmp1->get_image())[i * width + j] != (cmp2->get_image())[i * width + j])
-          printf("%d!=%d \t", cmp1->get_image()[i * width + j], cmp2->get_image()[i * width + j]);
+          printf("(%d,%d) ", i, j);
+      // printf("%d!=%d \t", cmp1->get_image()[i * width + j], cmp2->get_image()[i * width + j]);
     }
   } else
     printf("Sizes not equal");

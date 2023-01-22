@@ -11,14 +11,15 @@ private:
   int width;
   int height;
   unsigned char *image;
+
 public:
   Image(int width, int height);
   Image(int width, int height, unsigned int seed);
-  Image(unsigned char *matrix,int width, int height);
-  unsigned char &operator[](int index); 
+  Image(unsigned char *matrix, int width, int height);
+  unsigned char &operator[](int index);
   int get_width();
   int get_height();
-  unsigned char* get_image();
-  ~Image(); 
+  unsigned char *get_image();
+  ~Image();
 };
 #endif
