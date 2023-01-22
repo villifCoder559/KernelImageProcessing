@@ -8,7 +8,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 # the following line was also necessary
 
 add_executable(image_kernel_processing main.cu image.cpp image.h convolution_gpu.cu convolution_gpu.h kernel.cpp kernel.h convolution_cpu.h convolution_cpu.cpp padding_image.h padding_image.cpp)
-# target_compile_options(kuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=-fopenmp>)
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
