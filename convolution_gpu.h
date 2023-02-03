@@ -9,14 +9,18 @@
 #include <stdlib.h>
 #define MAX_SIZE_KERNEL 7
 #define BLOCK_WIDTH 16
-enum type_memory { global, constant, shared };
+#define BLOCK_HEIGHT 8
+
+enum type_memory { global, constant, shared_constant };
 class ConvolutionGPU {
 public:
   ConvolutionGPU(){};
+  static double total_time;
+  static double kernel_time;
   static Image *apply_convolution_constant_memory(Image *image, Kernel *kernel, type_padding padding = zero);
   static Image *apply_convolution_global_memory(Image *image, Kernel *kernel, type_padding padding = zero);
-  static Image *apply_convolution_shared_memory(Image *image, Kernel *kernel, type_padding padding = zero, int version = 1);
-  // static Image *apply_convolution(Image *image, Kernel *kernel, type_padding padding = zero, type_memory type_mem = constant, int version = 1);
+  // static Image *apply_convolution_shared_memory(Image *image, Kernel *kernel, type_padding padding = zero);
+  static Image *apply_convolution_shared_constant_memory(Image *image, Kernel *kernel, type_padding padding = zero);
   ~ConvolutionGPU(){};
 };
 #endif
