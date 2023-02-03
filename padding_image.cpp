@@ -16,7 +16,7 @@ Image *PaddingImage::apply_padding_to_image(Image *img, const int kernel_size, t
       }
     }
     for (int i = 0; i < OLD_HEIGHT; i++)
-      for (int j = 0 ; j < OLD_WIDTH; j++)
+      for (int j = 0; j < OLD_WIDTH; j++)
         padded_img_matrix[(i + shift) * WIDTH + j + shift] = old_img_matrix[i * OLD_WIDTH + j];
     break;
   // case pixel_replication:
@@ -120,7 +120,6 @@ Image *PaddingImage::apply_padding_to_image(Image *img, const int kernel_size, t
           padded_img_matrix[(HEIGHT - 1 - i) * WIDTH + j] = old_img_matrix[(OLD_HEIGHT - (shift_padding_row)-1) * OLD_WIDTH + (shift_padding_col)]; // [(OLD_HEIGHT - 0 - 1) * OLD_WIDTH + 0]
           padded_img_matrix[(HEIGHT - 1 - i) * WIDTH + (WIDTH - 1 - j)] =
               old_img_matrix[(OLD_HEIGHT - (shift_padding_row)-1) * OLD_WIDTH + (OLD_WIDTH - (shift_padding_col)-1)]; // [(OLD_HEIGHT - 0 - 1) * OLD_WIDTH + (OLD_WIDTH - 0 - 1)]
-                                                                                                                      // }
         }
     else
       for (int i = 0; i < shift; i++)
@@ -129,7 +128,6 @@ Image *PaddingImage::apply_padding_to_image(Image *img, const int kernel_size, t
           padded_img_matrix[i * WIDTH + WIDTH - 1 - j] = old_img_matrix[OLD_WIDTH - 1];                                                   // [0 * OLD_WIDTH + OLD_WIDTH - j - 0]
           padded_img_matrix[(HEIGHT - 1 - i) * WIDTH + j] = old_img_matrix[(OLD_HEIGHT - 1) * OLD_WIDTH];                                 // [(OLD_HEIGHT - 0 - 1) * OLD_WIDTH + 0]
           padded_img_matrix[(HEIGHT - 1 - i) * WIDTH + (WIDTH - 1 - j)] = old_img_matrix[(OLD_HEIGHT - 1) * OLD_WIDTH + (OLD_WIDTH - 1)]; // [(OLD_HEIGHT - 0 - 1) * OLD_WIDTH + (OLD_WIDTH - 0 - 1)]
-                                                                                                                                          // }
         }
     break;
   }
