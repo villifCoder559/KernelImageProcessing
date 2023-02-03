@@ -94,8 +94,8 @@ __global__ void convolution_shared_memory_constant(unsigned char *img, unsigned 
   __syncthreads();
   float sum = 0.0f;
   if (col < WIDTH - shift && row < HEIGHT - shift && col_left && row_above) {
-    for (int j = 0; j < K_SIZE; j++) {
-      for (int i = 0; i < K_SIZE; i++) {
+    for (int i = 0; i < K_SIZE; i++) {
+      for (int j = 0; j < K_SIZE; j++) {
         int index_c = c + j;
         int index_r = r + i;
         sum += d_img[index_r * size_d_img + index_c] * kernel_const[i * K_SIZE + j];
