@@ -12,6 +12,7 @@
 class ConvolutionCPU {
 public:
   ConvolutionCPU(){};
+  static double total_time;
   static Image *apply_convolution_parallel(Image *image, Kernel *kernel,type_padding padding=zero);
   static Image *apply_convolution_sequential(Image *image,Kernel *kernel,type_padding padding=zero);
   ~ConvolutionCPU(){};

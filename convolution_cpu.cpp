@@ -7,22 +7,20 @@ Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel, 
   const int HEIGHT = image->get_height();
   const int K_SIZE = kernel->get_size();
   const float *mask = kernel->get_kernel();
-  const int shift = K_SIZE / 2;
   const float norm = kernel->get_normalization_factor();
   unsigned char *result_img = (unsigned char *)malloc(sizeof(unsigned char) * WIDTH * HEIGHT);
   float sum = 0.0f;
   auto start = omp_get_wtime();
-#pragma omp parallel for firstprivate(HEIGHT, WIDTH, K_SIZE, shift, sum, norm) schedule(dynamic)
+#pragma omp parallel for firstprivate(HEIGHT, WIDTH, K_SIZE, sum, norm) schedule(dynamic)
   for (int i = 0; i < HEIGHT; i++) {
     for (int j = 0; j < WIDTH; j++) {
       for (int k = 0; k < K_SIZE; k++) {
         for (int w = 0; w < K_SIZE; w++) {
           int index_r = i + k;
           int index_c = j + w;
-          // if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
-            sum += img[index_r * (WIDTH + (K_SIZE - 1)) + index_c] * mask[k * K_SIZE + w];
-            // if (i == 1 && j == 7902)
-            //   printf("[%d_%d]->%d*%f \n", index_r, index_c, img[index_r * WIDTH + index_c], mask[k * K_SIZE + w]);
+          sum += img[index_r * (WIDTH + (K_SIZE - 1)) + index_c] * mask[k * K_SIZE + w];
+          // if (i == 1 && j == 7902)
+          //   printf("[%d_%d]->%d*%f \n", index_r, index_c, img[index_r * WIDTH + index_c], mask[k * K_SIZE + w]);
           // }
         }
       }
@@ -32,9 +30,9 @@ Image *ConvolutionCPU::apply_convolution_parallel(Image *image, Kernel *kernel, 
     }
   }
   auto end = omp_get_wtime();
-  std::cout << "TIME_CPU_parallel: " << end - start << "\n";
+  total_time += end - start;
+  // std::cout << "TIME_CPU_parallel: " << end - start << "\n";
   Image *out_image = new Image(result_img, WIDTH, HEIGHT);
-  // delete img;
   delete img_padded;
   return out_image;
 }
@@ -45,7 +43,6 @@ Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel
   const int HEIGHT = image->get_height();
   const int K_SIZE = kernel->get_size();
   const float *mask = kernel->get_kernel();
-  const int shift = K_SIZE / 2;
   const float norm = kernel->get_normalization_factor();
   unsigned char *result_img = (unsigned char *)malloc(sizeof(unsigned char) * WIDTH * HEIGHT);
   float sum = 0.0f;
@@ -56,9 +53,7 @@ Image *ConvolutionCPU::apply_convolution_sequential(Image *image, Kernel *kernel
         int index_r = i + k;
         for (int w = 0; w < K_SIZE; w++) {
           int index_c = j + w;
-          // if (index_r >= 0 && index_r < HEIGHT && index_c >= 0 && index_c < WIDTH) {
-            sum += img[index_r * (WIDTH+K_SIZE-1) + index_c] * mask[k * K_SIZE + w];
-          // }
+          sum += img[index_r * (WIDTH + K_SIZE - 1) + index_c] * mask[k * K_SIZE + w];
         }
       }
       sum = sum * norm;
