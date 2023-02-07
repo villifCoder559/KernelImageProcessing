@@ -46,9 +46,9 @@ __global__ void convolution_shared_memory_constant(unsigned char *img, unsigned 
   int c = threadIdx.x;
   int r = threadIdx.y;
   int shift = K_SIZE / 2;
-  bool row_above = (row - shift >= 0);
+  bool row_above = (row - shift >= 0 && r < shift);
   bool row_below = (r >= BLOCK_HEIGHT - shift && (row + shift) < HEIGHT);
-  bool col_left = (col - shift >= 0);
+  bool col_left = (col - shift >= 0 && c < shift);
   bool col_right = ((c >= BLOCK_WIDTH - shift) && (col + shift < WIDTH));
   bool bottom_right = (col_right && row_below);
   bool top_left = (col_left && (shift - r > 0) && row_above);
@@ -116,9 +116,9 @@ __global__ void convolution_shared_memory_constant(unsigned char *img, unsigned 
 //   int c = threadIdx.x;
 //   int r = threadIdx.y;
 //   int shift = K_SIZE / 2;
-//   bool row_above = (row - shift >= 0);
+//   bool row_above = (row - shift >= 0 && r < shift);
 //   bool row_below = (r >= BLOCK_HEIGHT - shift && (row + shift) < HEIGHT);
-//   bool col_left = (col - shift >= 0);
+//   bool col_left = (col - shift >= 0 && c < shift);
 //   bool col_right = ((c >= BLOCK_WIDTH - shift) && (col + shift < WIDTH));
 //   bool bottom_right = (col_right && row_below);
 //   bool top_left = (col_left && (shift - r > 0) && row_above);
@@ -309,6 +309,7 @@ Image *ConvolutionGPU::apply_convolution_global_memory(Image *image, Kernel *ker
 //   delete img_padded;
 //   cudaFree(d_img);
 //   cudaFree(d_out_img);
+//   cudaFree(d_kernel);
 //   return out_img;
 // }
 Image *ConvolutionGPU::apply_convolution_shared_constant_memory(Image *image, Kernel *kernel, type_padding padding) {
