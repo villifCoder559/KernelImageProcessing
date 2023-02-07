@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #define MAX_SIZE_KERNEL 7
 #define BLOCK_WIDTH 16
-#define BLOCK_HEIGHT 8
+#define BLOCK_HEIGHT 16
 
-enum type_memory { global, constant, shared_constant };
+enum type_memory { global_memory, constant_memory, shared_memory};
 class ConvolutionGPU {
 public:
   ConvolutionGPU(){};
