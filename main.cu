@@ -35,47 +35,46 @@ double ConvolutionGPU::kernel_time = 0;
 double ConvolutionCPU::total_time = 0;
 // int width[] = {1250, 1970, 2500, 8546};
 // int height[] = {850, 1298, 1530, 4450};
+// int width[] = {1280, 1920, 2560, 8120};
+// int height[] = {720, 1280, 1440, 4568};
 int main() {
   int tot_tests = 4;
   int tot_kernels = 3;
-  int width[] = {1250, 1970, 2500, 8546};
-  int height[] = {850, 1298, 1530, 4450};
+  int width[] = {1280, 1920, 2560, 8120};
+  int height[] = {720, 1280, 1440, 4568};
   type_kernel kernels[] = {gaussian_blur_3x3, gaussian_blur_5x5, gaussian_blur_7x7};
   type_padding paddings[] = {zero, pixel_mirroring, pixel_replication};
-  // Image *img = new Image(1920, 1080, 100);
-  // Kernel *mask = new Kernel(kernels[2]);
-  // Image *result_img_shared = ConvolutionGPU::apply_convolution_global_memory(img, mask, zero);
+  Image *img = new Image(1920, 1080, 100);
+  Kernel *mask = new Kernel(kernels[2]);
+  Image *result_img_shared = ConvolutionGPU::apply_convolution_global_memory(img, mask, zero);
   ConvolutionGPU::total_time = 0;
   ConvolutionGPU::kernel_time = 0;
-  int size = 3;
-  test_multiple_time_convolution(100, width[size], height[size], kernels[1], paddings[2], shared_constant);
-  // // cudaDeviceProp *prop=new cudaDeviceProp();
-  // cudaGetDeviceProperties_v2(prop,1);
-  // test_all_convolutions(tot_tests, tot_kernels, width, height, kernels, paddings[1]);
-  // Image *result_img_base = ConvolutionGPU::apply_convolution_global_memory(img, mask, zero);
-  // compare_result(result_img_base, result_img_shared);
+  int size = 0;
+  // test_multiple_time_convolution(100, width[size], height[size], kernels[2], paddings[2], shared_memory);
+  // test_multiple_time_convolution(100, width[size], height[size], kernels[2], paddings[2], constant_memory);
+  test_multiple_time_convolution(100, width[size], height[size], kernels[2], paddings[2], shared_memory);
   return 0;
 }
 
 void test_multiple_time_convolution(int n, int width, int height, type_kernel t_kernel, type_padding t_padding, type_memory memory) {
   Kernel *mask = new Kernel(t_kernel);
   double total_time = 0;
-  printf("\n(%d,%d) using %dx%d gaussian filter with %d images", width, height, mask->get_size(), mask->get_size(), n);
+  printf("\n(%d,%d) using %dx%d gaussian filter with %d images \n", width, height, mask->get_size(), mask->get_size(), n);
   for (int i = 0; i < n; i++) {
     Image *img = new Image(width, height, 0);
     Image *result_img;
     switch (memory) {
-    case global:
+    case global_memory:
       if (i == 0)
         std::cout << "global " << std::endl;
       result_img = ConvolutionGPU::apply_convolution_global_memory(img, mask, t_padding);
       break;
-    case constant:
+    case constant_memory:
       if (i == 0)
         std::cout << "constant " << std::endl;
       result_img = ConvolutionGPU::apply_convolution_constant_memory(img, mask, t_padding);
       break;
-    case shared_constant:
+    case shared_memory:
       if (i == 0)
         std::cout << "shared_constant " << std::endl;
       result_img = ConvolutionGPU::apply_convolution_shared_constant_memory(img, mask, t_padding);
